@@ -1,0 +1,39 @@
+name: Build NEXORA APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android project files
+        run: flutter create --platforms=android --org com.nexora.app .
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: >
+          flutter build apk --release
+          --dart-define=SUPABASE_URL=${{ secrets.NEXORA_SUPABASE_URL }}
+          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.NEXORA_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+          
