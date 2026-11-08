@@ -1,3 +1,4 @@
+
 name: Build NEXORA APK
 
 on:
@@ -8,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -24,6 +26,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Verify Supabase URL
+        env:
+          SUPABASE_URL: ${{ secrets.NEXORA_SUPABASE_URL }}
+        run: |
+          echo "Supabase URL: $SUPABASE_URL"
+
       - name: Build release APK
         run: >
           flutter build apk --release
@@ -36,4 +44,3 @@ jobs:
           name: nexora-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
-          
