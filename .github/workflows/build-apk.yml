@@ -1,15 +1,16 @@
-
 name: Build NEXORA APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -21,20 +22,62 @@ jobs:
           cache: true
 
       - name: Generate Android project files
-        run: flutter create --platforms=android --org com.nexora.app .
+        run: flutter create --project-name nexora --org com.nexora.app --platforms android .
+
+      - name: Configure Android app
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text()
+          internet = '<uses-permission android:name="android.permission.INTERNET" />'
+          if "android.permission.INTERNET" not in text:
+              text = text.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    ' + internet
+              )
+          text = text.replace('android:label="nexora"', 'android:label="NEXORA"')
+          manifest.write_text(text)
+
+          gradle = Path("android/app/build.gradle.kts")
+          if gradle.exists():
+              content = gradle.read_text()
+              content = content.replace(
+                  "minSdk = flutter.minSdkVersion",
+                  "minSdk = 24"
+              )
+              gradle.write_text(content)
+          PY
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build release APK
-        run: >
-          flutter build apk --release
-          --dart-define=SUPABASE_URL=https://lpdjilckstwbsnitoidb.supabase.co
-          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.NEXORA_SUPABASE_PUBLISHABLE_KEY }}
+      - name: Validate Supabase configuration
+        env:
+          SUPABASE_URL: ${{ secrets.NEXORA_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXORA_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" || { echo "::error::Missing NEXORA_SUPABASE_URL repository secret"; exit 1; }
+          case "$SUPABASE_URL" in https://*) ;; *) echo "::error::NEXORA_SUPABASE_URL must start with https://"; exit 1 ;; esac
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Missing NEXORA_SUPABASE_PUBLISHABLE_KEY repository secret"; exit 1; }
 
-      - name: Upload APK
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Build release APK
+        env:
+          SUPABASE_URL: ${{ secrets.NEXORA_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXORA_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          flutter build apk --release \\
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \\
+            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexora-android-apk
+          name: nexora-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
           retention-days: 14
