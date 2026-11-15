@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -390,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             onRefresh: loadUsers,
                             child: ListView.separated(
                               itemCount: visible.length,
-                              separatorBuilder: (_, __) => const Divider(
+                              separatorBuilder: (context, index) => const Divider(
                                   height: 1, indent: 76, endIndent: 18),
                               itemBuilder: (context, index) {
                                 final user = visible[index];
