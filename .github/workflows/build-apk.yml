@@ -26,6 +26,9 @@ jobs:
       - name: Generate Android project files
         run: flutter create --project-name nexora --org com.nexora.app --platforms android .
 
+      - name: Remove generated Flutter sample test
+        run: rm -f test/widget_test.dart
+
       - name: Configure Android app
         shell: bash
         run: |
@@ -54,6 +57,10 @@ jobs:
 
       - name: Analyze Dart code
         run: flutter analyze
+
+      - name: Run Flutter tests
+        if: hashFiles('test/**/*_test.dart') != ''
+        run: flutter test
 
       - name: Validate Supabase configuration
         if: github.event_name != 'pull_request'
